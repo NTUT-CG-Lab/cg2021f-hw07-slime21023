@@ -98,36 +98,57 @@
 				var dimension = dicom2Raw.getDim();
 				document.getElementById('size').innerText = '尺寸: ' + dimension.x + ' x ' + dimension.y + ' x ' + dimension.z;
 
+				function handleRaw(bitDepth, rawData) {
+					const data = new Uint16Array(rawData)
+					if(bitDepth == 16) return data
+
+					const divData = data.map(item => item >> 8)
+					const eight = new Uint8Array(data.length)
+					eight.forEach((item, index) => item = divData[index])
+					return eight
+				}
+
 				const button8bit = document.getElementById('download-button-8bit')
 				const button16bit = document.getElementById('download-button-16bit')
 				dicom2Raw.concatnate(() => {
+					// console.log(dicom2Raw.rawData.byteLength *8  / (dimension.x * dimension.y * dimension.z))
 					button8bit.setAttribute('class', 'my-btn allow')
 					button16bit.setAttribute('class', 'my-btn allow')
 					document.getElementById('info').innerText = '轉換完成'
 
 					button8bit.addEventListener('click', () => {
 						const filename = document.getElementById('file-name').value
-						Dicom2Raw.downloadData(`${filename}-8bit.raw`, new Uint8Array(dicom2Raw.rawData))
+						Dicom2Raw.downloadData(`${filename}-8bit.raw`, handleRaw(8, dicom2Raw.rawData))
 					})
 
 					button16bit.addEventListener('click', () => {
 						const filename = document.getElementById('file-name').value
-						Dicom2Raw.downloadData(`${filename}-16bit.raw`, new Uint16Array(dicom2Raw.rawData))
+						Dicom2Raw.downloadData(`${filename}-16bit.raw`, handleRaw(16, dicom2Raw.rawData))
 					})
 
 					const image = document.getElementById("display-img")
 					const target = dicom2Raw.getImagePixel(Math.floor(dimension.z / 2))
+					
 					image.width = dimension.x
 					image.height = dimension.y
+
+					const imageBuf = new Uint16Array(target)
+					let finImg = new Uint16Array(3 * imageBuf.length)
+					imageBuf.forEach((item, index) => {
+						finImg[index] = item
+						finImg[index+1] = item
+						finImg[index+2] = item
+					})
+					console.log(finImg)
 					const imageBlob = new Blob(
-						[target],
+						[finImg],
 						{ type: 'image/jpeg' }
 					)
+					// image.src = URL.createObjectURL(imageBlob)
 					const reader = new FileReader()
 					reader.readAsDataURL(imageBlob)
 					reader.onload = () => {
 						image.src = reader.result
-						console.log(reader.result)
 					}
 				})
 			}
